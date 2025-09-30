@@ -194,8 +194,12 @@ async function getPullRequestFileChangesCount(
     const excludeAdditionsGlobber = excludeAdditionsPaths
       ? await glob.create(excludeAdditionsPaths)
       : null;
+
     const excludedFiles = await exludePathsGlobber?.glob();
     const excludedAdditionsFiles = await excludeAdditionsGlobber?.glob();
+
+    core.debug(`Excluded files: ${excludedFiles}`);
+    core.debug(`Excluded additions files: ${excludedAdditionsFiles}`);
 
     for (const file of files) {
       core.debug(`File: ${file.filename}`);
