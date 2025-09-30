@@ -18,9 +18,11 @@ export async function run() {
     const excludeAdditionsPaths =
       core.getMultilineInput("exclude-additions-paths") || [];
 
+    core.info("Starting pull request labeler");
+
     const prNumber = getPrNumber();
     if (!prNumber) {
-      console.log("Could not get pull request number from context, exiting");
+      core.info("Could not get pull request number from context, exiting");
       return;
     }
 
@@ -32,7 +34,7 @@ export async function run() {
       pull_number: prNumber,
     });
 
-    core.debug(`fetching changed files for pr #${prNumber}`);
+    core.info(`fetching changed files for pr #${prNumber}`);
 
     const changedLinesCnt: number = await getPullRequestFileChangesCount(
       client,
@@ -196,18 +198,18 @@ async function getPullRequestFileChangesCount(
     const excludedAdditionsFiles = await excludeAdditionsGlobber?.glob();
 
     for (const file of files) {
-      console.log(`File: ${file.filename}`);
-      console.log(`Status: ${file.status}`); // added, modified, deleted, renamed
-      console.log(`Additions: ${file.additions}`);
-      console.log(`Deletions: ${file.deletions}`);
+      core.info(`File: ${file.filename}`);
+      core.info(`Status: ${file.status}`); // added, modified, deleted, renamed
+      core.info(`Additions: ${file.additions}`);
+      core.info(`Deletions: ${file.deletions}`);
 
       const isExcluded = excludedFiles?.includes(file.filename);
       const isAdditionsExcluded = excludedAdditionsFiles?.includes(
         file.filename
       );
 
-      console.log(`Is Excluded: ${isExcluded}`);
-      console.log(`Is Additions Excluded: ${isAdditionsExcluded}`);
+      core.info(`Is Excluded: ${isExcluded}`);
+      core.info(`Is Additions Excluded: ${isAdditionsExcluded}`);
 
       if (isExcluded) {
         continue; // Skip this file entirely
@@ -220,7 +222,7 @@ async function getPullRequestFileChangesCount(
     }
     return lineChanges;
   } catch (error) {
-    console.error("Error fetching pull request file changes:", error);
+    core.error(`Error fetching pull request file changes: ${error}`);
     throw error;
   }
 }
