@@ -1,7 +1,7 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import * as yaml from "js-yaml";
-import * as glob from "@actions/glob";
+import minimatch from "minimatch";
 
 interface LabelConfig {
   min?: number;
@@ -41,8 +41,8 @@ export async function run() {
       github.context.repo.owner,
       github.context.repo.repo,
       prNumber,
-      excludePaths.length > 0 ? excludePaths.join("\n") : null,
-      excludeAdditionsPaths.length > 0 ? excludeAdditionsPaths.join("\n") : null
+      excludePaths,
+      excludeAdditionsPaths
     );
 
     core.debug(`changed lines count: ${changedLinesCnt}`);
@@ -176,8 +176,8 @@ async function getPullRequestFileChangesCount(
   owner: string,
   repo: string,
   pull_number: number,
-  excludePaths: string | null = null,
-  excludeAdditionsPaths: string | null = null
+  excludePaths: string[],
+  excludeAdditionsPaths: string[]
 ): Promise<number> {
   try {
     const { data: files } = await octokit.rest.pulls.listFiles({
@@ -186,33 +186,22 @@ async function getPullRequestFileChangesCount(
       pull_number,
     });
 
-    core.debug("test globbing");
-    const testGlobber = await glob.create("**/src/**");
-    const testFiles = await testGlobber.glob();
-    core.debug(`Test glob files: ${testFiles}`);
-
     core.debug(`Input exclude paths: ${excludePaths}`);
     core.debug(`Input exclude additions paths: ${excludeAdditionsPaths}`);
 
     var lineChanges = 0;
 
-    const exludePathsGlobber = excludePaths
-      ? await glob.create(excludePaths)
-      : null;
-    const excludeAdditionsGlobber = excludeAdditionsPaths
-      ? await glob.create(excludeAdditionsPaths)
-      : null;
+    const isExcluded = (filePath: string): boolean => {
+      return excludePaths
+        .map((pattern) => minimatch(filePath, pattern))
+        .some((match) => match);
+    };
 
-    core.debug(`Created exclude paths globber: ${exludePathsGlobber}`);
-    core.debug(
-      `Created exclude additions paths globber: ${excludeAdditionsGlobber}`
-    );
-
-    const excludedFiles = await exludePathsGlobber?.glob();
-    const excludedAdditionsFiles = await excludeAdditionsGlobber?.glob();
-
-    core.debug(`Excluded files: ${excludedFiles}`);
-    core.debug(`Excluded additions files: ${excludedAdditionsFiles}`);
+    const isAdditionsExcluded = (filePath: string): boolean => {
+      return excludeAdditionsPaths
+        .map((pattern) => minimatch(filePath, pattern))
+        .some((match) => match);
+    };
 
     for (const file of files) {
       core.debug(`File: ${file.filename}`);
@@ -220,18 +209,16 @@ async function getPullRequestFileChangesCount(
       core.debug(`Additions: ${file.additions}`);
       core.debug(`Deletions: ${file.deletions}`);
 
-      const isExcluded = excludedFiles?.includes(file.filename);
-      const isAdditionsExcluded = excludedAdditionsFiles?.includes(
-        file.filename
-      );
+      const _isExcluded = isExcluded(file.filename);
+      const _isAdditionsExcluded = isAdditionsExcluded(file.filename);
 
-      core.debug(`Is Excluded: ${isExcluded}`);
-      core.debug(`Is Additions Excluded: ${isAdditionsExcluded}`);
+      core.debug(`Is Excluded: ${_isExcluded}`);
+      core.debug(`Is Additions Excluded: ${_isAdditionsExcluded}`);
 
-      if (isExcluded) {
+      if (_isExcluded) {
         continue; // Skip this file entirely
       }
-      if (isAdditionsExcluded) {
+      if (_isAdditionsExcluded) {
         lineChanges += file.deletions; // Only count deletions
         continue;
       }
