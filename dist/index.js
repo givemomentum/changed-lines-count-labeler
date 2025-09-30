@@ -165,6 +165,10 @@ function getPullRequestFileChangesCount(octokit, owner, repo, pull_number, exclu
                 repo,
                 pull_number,
             });
+            core.debug("test globbing");
+            const testGlobber = yield glob.create("**/src/**");
+            const testFiles = yield testGlobber.glob();
+            core.debug(`Test glob files: ${testFiles}`);
             core.debug(`Input exclude paths: ${excludePaths}`);
             core.debug(`Input exclude additions paths: ${excludeAdditionsPaths}`);
             var lineChanges = 0;
@@ -174,6 +178,8 @@ function getPullRequestFileChangesCount(octokit, owner, repo, pull_number, exclu
             const excludeAdditionsGlobber = excludeAdditionsPaths
                 ? yield glob.create(excludeAdditionsPaths)
                 : null;
+            core.debug(`Created exclude paths globber: ${exludePathsGlobber}`);
+            core.debug(`Created exclude additions paths globber: ${excludeAdditionsGlobber}`);
             const excludedFiles = yield (exludePathsGlobber === null || exludePathsGlobber === void 0 ? void 0 : exludePathsGlobber.glob());
             const excludedAdditionsFiles = yield (excludeAdditionsGlobber === null || excludeAdditionsGlobber === void 0 ? void 0 : excludeAdditionsGlobber.glob());
             core.debug(`Excluded files: ${excludedFiles}`);

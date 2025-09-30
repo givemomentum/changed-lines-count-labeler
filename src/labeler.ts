@@ -186,6 +186,11 @@ async function getPullRequestFileChangesCount(
       pull_number,
     });
 
+    core.debug("test globbing");
+    const testGlobber = await glob.create("**/src/**");
+    const testFiles = await testGlobber.glob();
+    core.debug(`Test glob files: ${testFiles}`);
+
     core.debug(`Input exclude paths: ${excludePaths}`);
     core.debug(`Input exclude additions paths: ${excludeAdditionsPaths}`);
 
@@ -197,6 +202,11 @@ async function getPullRequestFileChangesCount(
     const excludeAdditionsGlobber = excludeAdditionsPaths
       ? await glob.create(excludeAdditionsPaths)
       : null;
+
+    core.debug(`Created exclude paths globber: ${exludePathsGlobber}`);
+    core.debug(
+      `Created exclude additions paths globber: ${excludeAdditionsGlobber}`
+    );
 
     const excludedFiles = await exludePathsGlobber?.glob();
     const excludedAdditionsFiles = await excludeAdditionsGlobber?.glob();
