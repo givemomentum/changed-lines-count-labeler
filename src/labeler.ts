@@ -18,11 +18,11 @@ export async function run() {
     const excludeAdditionsPaths =
       core.getMultilineInput("exclude-additions-paths") || [];
 
-    core.info("Starting pull request labeler");
+    core.debug("Starting pull request labeler");
 
     const prNumber = getPrNumber();
     if (!prNumber) {
-      core.info("Could not get pull request number from context, exiting");
+      core.debug("Could not get pull request number from context, exiting");
       return;
     }
 
@@ -34,7 +34,7 @@ export async function run() {
       pull_number: prNumber,
     });
 
-    core.info(`fetching changed files for pr #${prNumber}`);
+    core.debug(`fetching changed files for pr #${prNumber}`);
 
     const changedLinesCnt: number = await getPullRequestFileChangesCount(
       client,
@@ -198,18 +198,18 @@ async function getPullRequestFileChangesCount(
     const excludedAdditionsFiles = await excludeAdditionsGlobber?.glob();
 
     for (const file of files) {
-      core.info(`File: ${file.filename}`);
-      core.info(`Status: ${file.status}`); // added, modified, deleted, renamed
-      core.info(`Additions: ${file.additions}`);
-      core.info(`Deletions: ${file.deletions}`);
+      core.debug(`File: ${file.filename}`);
+      core.debug(`Status: ${file.status}`); // added, modified, deleted, renamed
+      core.debug(`Additions: ${file.additions}`);
+      core.debug(`Deletions: ${file.deletions}`);
 
       const isExcluded = excludedFiles?.includes(file.filename);
       const isAdditionsExcluded = excludedAdditionsFiles?.includes(
         file.filename
       );
 
-      core.info(`Is Excluded: ${isExcluded}`);
-      core.info(`Is Additions Excluded: ${isAdditionsExcluded}`);
+      core.debug(`Is Excluded: ${isExcluded}`);
+      core.debug(`Is Additions Excluded: ${isAdditionsExcluded}`);
 
       if (isExcluded) {
         continue; // Skip this file entirely
