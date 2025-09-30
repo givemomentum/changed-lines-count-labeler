@@ -1,15 +1,21 @@
-name: 'Changed Lines Count Labeler'
-description: 'Set a label based on the number of lines changed'
+name: "Changed Lines Count Labeler"
+description: "Set a label based on the number of lines changed"
 inputs:
   repo-token:
-    description: 'The GITHUB_TOKEN secret'
+    description: "The GITHUB_TOKEN secret"
   configuration-path:
-    description: 'The path for the label configurations'
-    default: '.github/changed-lines-count-labeler.yml'
+    description: "The path for the label configurations"
+    default: ".github/changed-lines-count-labeler.yml"
+    required: false
+  exclude-paths:
+    description: "List of globs to ignore when counting lines"
+    required: false
+  exclude-additions-paths:
+    description: "List of globs to ignore additions when counting lines"
     required: false
 runs:
-  using: 'node16'
-  main: 'dist/index.js'
+  using: "node16"
+  main: "dist/index.js"
 branding:
-  icon: 'tag'
-  color: 'blue'
+  icon: "tag"
+  color: "blue"

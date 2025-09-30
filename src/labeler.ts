@@ -1,6 +1,7 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import * as yaml from "js-yaml";
+import * as glob from "@actions/glob";
 
 interface LabelConfig {
   min?: number;
@@ -13,6 +14,9 @@ export async function run() {
   try {
     const token = core.getInput("repo-token", { required: true });
     const configPath = core.getInput("configuration-path", { required: true });
+    const excludePaths = core.getMultilineInput("exclude-paths") || [];
+    const excludeAdditionsPaths =
+      core.getMultilineInput("exclude-additions-paths") || [];
 
     const prNumber = getPrNumber();
     if (!prNumber) {
@@ -29,8 +33,22 @@ export async function run() {
     });
 
     core.debug(`fetching changed files for pr #${prNumber}`);
-    const changedLinesCnt: number = pullRequest.additions + pullRequest.deletions;
-    const config: Map<string, LabelConfig> = await getConfig(client, configPath); // Label to its config
+
+    const changedLinesCnt: number = await getPullRequestFileChangesCount(
+      client,
+      github.context.repo.owner,
+      github.context.repo.repo,
+      prNumber,
+      excludePaths.length > 0 ? excludePaths.join("\n") : null,
+      excludeAdditionsPaths.length > 0 ? excludeAdditionsPaths.join("\n") : null
+    );
+
+    core.debug(`changed lines count: ${changedLinesCnt}`);
+
+    const config: Map<string, LabelConfig> = await getConfig(
+      client,
+      configPath
+    ); // Label to its config
 
     const labels: string[] = [];
     const labelsToRemove: string[] = [];
@@ -69,7 +87,10 @@ async function getConfig(
   client: ClientType,
   configurationPath: string
 ): Promise<Map<string, LabelConfig>> {
-  const configurationContent: string = await fetchContent(client, configurationPath);
+  const configurationContent: string = await fetchContent(
+    client,
+    configurationPath
+  );
   const configObject: any = yaml.load(configurationContent);
   return getLabelConfigMapFromObject(configObject);
 }
@@ -96,17 +117,24 @@ function getLabelConfigMapFromObject(
     if (configObject[label] instanceof Object) {
       labelGlobs.set(label, configObject[label]);
     } else {
-      throw Error(`unexpected type for label ${label} (should be string or array of globs)`);
+      throw Error(
+        `unexpected type for label ${label} (should be string or array of globs)`
+      );
     }
   }
 
   return labelGlobs;
 }
 
-export function checkBoundaries(cnt: number, labelConfig: LabelConfig): boolean {
-  if ((labelConfig.min == undefined || labelConfig.min <= cnt) &&
-      (labelConfig.max == undefined || cnt <= labelConfig.max)) {
-    return true
+export function checkBoundaries(
+  cnt: number,
+  labelConfig: LabelConfig
+): boolean {
+  if (
+    (labelConfig.min == undefined || labelConfig.min <= cnt) &&
+    (labelConfig.max == undefined || cnt <= labelConfig.max)
+  ) {
+    return true;
   }
   return false;
 }
@@ -139,4 +167,60 @@ async function removeLabels(
       })
     )
   );
+}
+
+async function getPullRequestFileChangesCount(
+  octokit: ClientType,
+  owner: string,
+  repo: string,
+  pull_number: number,
+  excludePaths: string | null = null,
+  excludeAdditionsPaths: string | null = null
+): Promise<number> {
+  try {
+    const { data: files } = await octokit.rest.pulls.listFiles({
+      owner,
+      repo,
+      pull_number,
+    });
+
+    var lineChanges = 0;
+
+    const exludePathsGlobber = excludePaths
+      ? await glob.create(excludePaths)
+      : null;
+    const excludeAdditionsGlobber = excludeAdditionsPaths
+      ? await glob.create(excludeAdditionsPaths)
+      : null;
+    const excludedFiles = await exludePathsGlobber?.glob();
+    const excludedAdditionsFiles = await excludeAdditionsGlobber?.glob();
+
+    for (const file of files) {
+      console.log(`File: ${file.filename}`);
+      console.log(`Status: ${file.status}`); // added, modified, deleted, renamed
+      console.log(`Additions: ${file.additions}`);
+      console.log(`Deletions: ${file.deletions}`);
+
+      const isExcluded = excludedFiles?.includes(file.filename);
+      const isAdditionsExcluded = excludedAdditionsFiles?.includes(
+        file.filename
+      );
+
+      console.log(`Is Excluded: ${isExcluded}`);
+      console.log(`Is Additions Excluded: ${isAdditionsExcluded}`);
+
+      if (isExcluded) {
+        continue; // Skip this file entirely
+      }
+      if (isAdditionsExcluded) {
+        lineChanges += file.deletions; // Only count deletions
+        continue;
+      }
+      lineChanges += file.additions + file.deletions;
+    }
+    return lineChanges;
+  } catch (error) {
+    console.error("Error fetching pull request file changes:", error);
+    throw error;
+  }
 }
