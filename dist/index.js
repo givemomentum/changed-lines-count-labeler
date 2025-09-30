@@ -165,6 +165,8 @@ function getPullRequestFileChangesCount(octokit, owner, repo, pull_number, exclu
                 repo,
                 pull_number,
             });
+            core.debug(`Input exclude paths: ${excludePaths}`);
+            core.debug(`Input exclude additions paths: ${excludeAdditionsPaths}`);
             var lineChanges = 0;
             const exludePathsGlobber = excludePaths
                 ? yield glob.create(excludePaths)
